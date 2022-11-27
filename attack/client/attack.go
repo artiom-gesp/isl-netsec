@@ -94,7 +94,7 @@ func Attack(ctx context.Context, meowServerAddr string, spoofedAddr *snet.UDPAdd
 	spoofedAddr.Path = a[0].Path()
 	spoofedAddr.Path.Reverse()
 	path = spoofedAddr.Path
-	payload = []byte{0}
+	// payload = []byte{0}
 	
 	// var p *spath.Path = &(a[0].Path())
 	pkt := &snet.Packet{
