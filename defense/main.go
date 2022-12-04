@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-	"net"
 	"time"
 
 	"ethz.ch/netsec/isl/handout/defense/lib"
@@ -14,17 +12,12 @@ const (
 // Global constants
 )
 
-type Test struct {
-	ip       net.IP
-	mac      string
-	count_ip int
-}
-
 var ip_map = make(map[string]time.Time)
 var mac_map = make(map[string]time.Time)
-var mac_count = make(map[string]int)
+var ip_count = make(map[string]int)
 var mac_save = make(map[string]map[string]bool)
 var time_last_ddos time.Time = time.Time{}
+var block_ip bool
 var ()
 
 // This function receives all packets destined to the customer server.
@@ -41,16 +34,6 @@ func filter(scion slayers.SCION, udp slayers.UDP, payload []byte) bool {
 	// Print packet contents (disable this before submitting your code)
 	// prettyPrintSCION(scion)
 	// prettyPrintUDP(udp)
-	if time.Since(time_last_ddos) > 1000000000 {
-		time_last_ddos = time.Now()
-		ip_map = make(map[string]time.Time)
-		mac_map = make(map[string]time.Time)
-		mac_count = make(map[string]int)
-		mac_save = make(map[string]map[string]bool)
-
-	} else {
-		time_last_ddos = time.Now()
-	}
 	raw := make([]byte, scion.Path.Len())
 	scion.Path.SerializeTo(raw)
 	path := &spath.Decoded{}
@@ -60,13 +43,33 @@ func filter(scion slayers.SCION, udp slayers.UDP, payload []byte) bool {
 	arr2 := path.HopFields[0].Mac
 	src_ip := string(arr[:])
 	src_mac := string(arr2[:])
+
+	if time.Since(time_last_ddos) > 500000000 {
+		// fmt.Println("RESET!")
+		// for key, val := range mac_save {
+		// 	fmt.Print("mac: ")
+		// 	for _, b := range []byte(key) {
+		// 		fmt.Printf("%d ", b)
+		// 	}
+		// 	fmt.Printf(", diff ip: %d\n", len(val))
+		// }
+		// fmt.Printf("IP HAS BEEN BLOCKED: %d", block_ip)
+		time_last_ddos = time.Now()
+		ip_map = make(map[string]time.Time)
+		mac_map = make(map[string]time.Time)
+		ip_count = make(map[string]int)
+		mac_save = make(map[string]map[string]bool)
+		block_ip = false
+
+	} else {
+		time_last_ddos = time.Now()
+	}
+
 	time_since_ip, exists := ip_map[src_ip]
 	time_since_hop, exists2 := mac_map[src_mac]
 	if !exists2 {
 		mac_save[src_mac] = make(map[string]bool)
-		mac_count[src_mac] = 1
 	} else {
-		mac_count[src_mac] += 1
 		// if mac_count[src_mac] >= 40 {
 		// 	return false
 		// }
@@ -82,26 +85,32 @@ func filter(scion slayers.SCION, udp slayers.UDP, payload []byte) bool {
 		ip_map[src_ip] = time.Now()
 	} else if exists {
 		ret = false
+		// fmt.Println("BLOCKED BY IP")
+		block_ip = true
 	} else {
 		ip_map[src_ip] = time.Now()
+		ip_count[src_ip] = 0
 	}
-	if exists2 && time.Since(time_since_hop) > 10000000 {
+	ip_count[src_ip] += 1
+
+	if exists2 && time.Since(time_since_hop) > 14000000 {
 		mac_map[src_mac] = time.Now()
-	} else if exists2 {
+	} else if exists2 && !block_ip {
+		// fmt.Println("BLOCKED BY MAC")
 		ret = false
 	} else {
 		mac_map[src_mac] = time.Now()
 	}
 
-	prettyPrintSCION(scion)
-	prettyPrintUDP(udp)
-	fmt.Println(scion.Payload)
+	// fmt.Println(scion.Payload)
 	mac_save[src_mac][src_ip] = true
-	if len(mac_save[src_mac]) >= 4 {
-		fmt.Println("HERE!!\n")
-		return false
+	if len(mac_save[src_mac]) >= 5 && !block_ip {
+		// if len(ip_count) >= 150 && ip_count[src_ip] == 1 && !block_ip {
+		// fmt.Println("BLOCKED BY NB")
+		ret = false
 	}
-	fmt.Printf("mac: %s, diff ip: %d\n", net.IP(arr2), len(mac_save[src_mac]))
+	// prettyPrintSCION(scion)
+	// prettyPrintUDP(udp)
 	// SAME FIRS HOP, DIFFERENT IP!
 
 	// raw := make([]byte, scion.Path.Len())
