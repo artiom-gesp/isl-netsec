@@ -4,6 +4,7 @@ grade-atk_local:
   script:
     - /bin/bash --login isl-grade atk local 
   coverage: '/Score: .*\((\d+)%\)/'
+  interruptible: false
 
 grade-atk_remote:
   when: manual
@@ -11,6 +12,7 @@ grade-atk_remote:
   script:
     - /bin/bash --login isl-grade atk remote 
   coverage: '/Score: .*\((\d+)%\)/'
+  interruptible: false
 
 grade-def1:
   when: manual
@@ -18,6 +20,7 @@ grade-def1:
   script:
     - /bin/bash --login isl-grade def 1
   coverage: '/Score: .*\((\d+)%\)/'
+  interruptible: false
 
 grade-def2:
   when: manual
@@ -25,6 +28,7 @@ grade-def2:
   script:
     - /bin/bash --login isl-grade def 2
   coverage: '/Score: .*\((\d+)%\)/'
+  interruptible: false
 
 grade-def3:
   when: manual
@@ -32,6 +36,7 @@ grade-def3:
   script:
     - /bin/bash --login isl-grade def 3
   coverage: '/Score: .*\((\d+)%\)/'
+  interruptible: false
 
 after_script:
   - /bin/bash grader-cleanup
